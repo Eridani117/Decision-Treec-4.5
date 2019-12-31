@@ -16,8 +16,16 @@ typedef struct _data_set {
   char *labels;
 
 } * DATA_SET;
+typedef struct _sub_data_set {
+  int cnt;
+  int *datas;
+  char *labels;
+
+} * SUB_DATA_SET;
 DATA_SET train_set;
 DATA_SET test_set;
+SUB_DATA_SET SUB_TRAIN_SET;
+SUB_DATA_SET SUB_TEST_SET;
 typedef struct Tree_node {
   int Node_type; //节点类型0内部，1叶子
   int feature;
@@ -41,6 +49,10 @@ void LoadTrainData(DATA_SET &t, int c) {
   ifstream f2("train_labels.txt");
   f1.getline(t->datas, 28 * 28 * t->cnt);
   f2.getline(t->labels, t->cnt);
+  SUB_TRAIN_SET = (SUB_DATA_SET)malloc(sizeof(struct _sub_data_set));
+  SUB_TRAIN_SET->cnt = c;
+  SUB_TRAIN_SET->datas = (int *)malloc(sizeof(int) * c);
+  SUB_TRAIN_SET->labels = t->labels;
 }
 
 void LoadTestData(DATA_SET &t, int c) {
@@ -53,7 +65,8 @@ void LoadTestData(DATA_SET &t, int c) {
   f1.getline(t->datas, 28 * 28 * t->cnt);
   f2.getline(t->labels, t->cnt);
 }
-double get_class_entropy(DATA_SET data) {
+
+double get_class_entropy(SUB_DATA_SET data) {
   map<char, int> num;
   double info = 0.0;
   for (int i = 0; i < data->cnt; i++) {
@@ -69,14 +82,14 @@ double get_class_entropy(DATA_SET data) {
   return info;
 }
 
-double get_label_entropy(DATA_SET data, int id) {
+double get_label_entropy(SUB_DATA_SET data, int id) {
   map<char, int> num;
   double info0 = 0.0;
   double info1 = 0.0;
   int num_0 = 0, num_1 = 0;
-
+  
   for (int i = 0; i < data->cnt; i++) {
-    if (data->datas[i * 784 + id] == '0') {
+    if (train_set->datas[data->datas[i]*784+id]== '0') {
       num[data->labels[i]]++;
       num_0++;
     }
@@ -91,7 +104,7 @@ double get_label_entropy(DATA_SET data, int id) {
   num.clear();
 
   for (int i = 0; i < data->cnt; i++) {
-    if (data->datas[i * 784 + id] == '1') {
+    if (train_set->datas[data->datas[i]*784+id] == '1') {
       num[data->labels[i]]++;
       num_1++;
     }
@@ -106,19 +119,19 @@ double get_label_entropy(DATA_SET data, int id) {
   return (double)num_0 / data->cnt * info0 + (double)num_1 / data->cnt * info1;
 }
 
-double get_Gain(DATA_SET data, int feature) {
+double get_Gain(SUB_DATA_SET data, int feature) {
   double a = get_class_entropy(data);
   double b = get_label_entropy(data, feature);
 
   return a - b;
 }
 
-double get_label_spilt_entropy(DATA_SET data, int id) {
+double get_label_spilt_entropy(SUB_DATA_SET data, int id) {
   int zero = 0, one = 0;
   int step = 784;
   double info = 0.0;
   for (int i = 0; i < data->cnt; i++) {
-    if ((data->datas[id + i * step]) == '1')
+    if (train_set->datas[id+ data->datas[i]*step] == '1')
       one++;
     else
       zero++;
@@ -134,9 +147,9 @@ double get_label_spilt_entropy(DATA_SET data, int id) {
 
   return info;
 }
-void spilt_data(DATA_SET data, int id, DATA_SET &zero, DATA_SET &one) {
-  zero = (DATA_SET)malloc(sizeof(struct _data_set));
-  one = (DATA_SET)malloc(sizeof(struct _data_set));
+void spilt_data(DATA_SET data, int id, SUB_DATA_SET &zero, SUB_DATA_SET &one) {
+  zero = (SUB_DATA_SET)malloc(sizeof(struct _sub_data_set));
+  one = (SUB_DATA_SET)malloc(sizeof(struct _sub_data_set));
   int size0 = 0, size1 = 0;
   for (int i = 0; i < data->cnt; i++) {
     if (data->datas[i * 784 + id] == '0')
@@ -148,25 +161,25 @@ void spilt_data(DATA_SET data, int id, DATA_SET &zero, DATA_SET &one) {
   one->cnt = size1;
   int p1 = 0;
   int p0 = 0;
-  zero->datas = (char *)malloc(size0 * 784);
-  one->datas = (char *)malloc(size1 * 784);
-  zero->labels = (char *)malloc(size0);
-  one->labels = (char *)malloc(size1);
+  zero->datas = (int *)malloc(sizeof(int) * size0);
+  one->datas = (int *)malloc(sizeof(int) * size1);
+  zero->labels = (char *)malloc(sizeof(int) * size0);
+  one->labels = (char *)malloc(sizeof(int) * size1);
 
   for (int i = 0; i < data->cnt; i++) {
     if (data->datas[i * 28 * 28 + id] == '0') {
-      memcpy((zero->datas) + 28 * 28 * (p0), (data->datas) + i * 28 * 28, 784);
+      zero->datas[p0] = i;
       zero->labels[p0] = data->labels[i];
       (p0)++;
     } else {
-      memcpy((one->datas) + 28 * 28 * (p1), (data->datas) + i * 28 * 28, 784);
-      (one->labels[p1]) = (data->labels[i]);
+      one->datas[p1] = i;
+      one->labels[p1] = data->labels[i];
       (p1)++;
     }
   }
 }
 
-void buildTree(TREE &root, DATA_SET data) {
+void buildTree(TREE &root, SUB_DATA_SET data) {
   root = (TREE)malloc(sizeof(struct Tree_node));
   root->t0 = NULL;
   root->t1 = NULL;
@@ -203,9 +216,9 @@ void buildTree(TREE &root, DATA_SET data) {
 
   root->feature = max_IGR_f;
 
-  DATA_SET zero, one;
+  SUB_DATA_SET zero, one;
 
-  spilt_data(data, max_IGR_f, zero, one);
+  spilt_data(train_set, max_IGR_f, zero, one);
 
   if (zero->cnt != 0)
     buildTree(root->t0, zero);
@@ -305,7 +318,7 @@ int main() {
   LoadTestData(test_set, test_cnt);
   cout << "loads over" << endl;
   TREE t;
-  buildTree(t, train_set);
+  buildTree(t, SUB_TRAIN_SET);
   cout << "bulid over" << endl;
   int all = 0, yes = 0;
   for (int i = 0; i < test_cnt; i++) {
