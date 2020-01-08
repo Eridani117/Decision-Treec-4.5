@@ -9,13 +9,17 @@
 #include <set>
 
 using namespace std;
-
+// 训练集数据
+// 不间断的01
+// 本程序每张图由28*28个元素组成
 typedef struct _data_set {
   int cnt;
   char *datas;
   char *labels;
 
 } * DATA_SET;
+// 子数据集
+// 只记录下该子数据集中每张图在训练集中的序号
 typedef struct _sub_data_set {
   int cnt;
   int *num;
@@ -23,6 +27,7 @@ typedef struct _sub_data_set {
 DATA_SET train_set;
 DATA_SET test_set;
 SUB_DATA_SET SUB_TRAIN_SET;
+// 树节点
 typedef struct Tree_node {
   int Node_type; //节点类型0内部，1叶子
   int feature;
@@ -30,6 +35,7 @@ typedef struct Tree_node {
   Tree_node *t0, *t1;
 } * TREE;
 
+// 树节点插入子节点
 void AddTree(Tree_node *root, char fe, Tree_node *t) {
   if (fe == '0')
     root->t0 = t;
@@ -37,6 +43,7 @@ void AddTree(Tree_node *root, char fe, Tree_node *t) {
     root->t1 = t;
 }
 
+// 装载数据集，同时把第一个子数据集装载好
 void LoadTrainData(DATA_SET &t, int c) {
   t = (DATA_SET)malloc(sizeof(struct _data_set));
   t->cnt = c;
@@ -54,6 +61,7 @@ void LoadTrainData(DATA_SET &t, int c) {
   }
 }
 
+// 装载训练数据集
 void LoadTestData(DATA_SET &t, int c) {
   t = (DATA_SET)malloc(sizeof(struct _data_set));
   t->cnt = c;
@@ -65,6 +73,7 @@ void LoadTestData(DATA_SET &t, int c) {
   f2.getline(t->labels, t->cnt);
 }
 
+// 计算类别信息熵
 double get_class_entropy(SUB_DATA_SET data) {
   map<char, int> num;
   double info = 0.0;
@@ -81,6 +90,7 @@ double get_class_entropy(SUB_DATA_SET data) {
   return info;
 }
 
+// 计算标签信息熵
 double get_label_entropy(SUB_DATA_SET data, int id) {
   map<char, int> num;
   double info0 = 0.0;
@@ -118,6 +128,7 @@ double get_label_entropy(SUB_DATA_SET data, int id) {
   return (double)num_0 / data->cnt * info0 + (double)num_1 / data->cnt * info1;
 }
 
+// 计算信息增益率
 double get_Gain(SUB_DATA_SET data, int feature) {
   double a = get_class_entropy(data);
   double b = get_label_entropy(data, feature);
@@ -125,6 +136,7 @@ double get_Gain(SUB_DATA_SET data, int feature) {
   return a - b;
 }
 
+// 计算标签分裂信息熵
 double get_label_spilt_entropy(SUB_DATA_SET data, int id) {
   int zero = 0, one = 0;
   int step = 784;
@@ -146,6 +158,8 @@ double get_label_spilt_entropy(SUB_DATA_SET data, int id) {
 
   return info;
 }
+
+// 将数据集按照树节点所选的标签分为两个
 void spilt_data(SUB_DATA_SET data, int id, SUB_DATA_SET &zero,
                 SUB_DATA_SET &one) {
   zero = (SUB_DATA_SET)malloc(sizeof(struct _sub_data_set));
@@ -175,6 +189,7 @@ void spilt_data(SUB_DATA_SET data, int id, SUB_DATA_SET &zero,
   }
 }
 
+// 建立决策树
 void buildTree(TREE &root, SUB_DATA_SET data) {
   root = (TREE)malloc(sizeof(struct Tree_node));
   root->t0 = NULL;
@@ -223,6 +238,7 @@ void buildTree(TREE &root, SUB_DATA_SET data) {
     buildTree(root->t1, one);
 }
 
+// 图像预测
 char img_ident(char *img, TREE rt) {
   if (rt == NULL)
     return '?';
@@ -237,6 +253,7 @@ char img_ident(char *img, TREE rt) {
   }
 }
 
+// 导出到图片
 void write(int num, int id, char img[]) {
   //用于存储一张手写体图片的位图信息
   char image[28 * 28];
